@@ -264,29 +264,29 @@ func DialTimeout(addr string, timeout time.Duration) (*ServerConn, error) {
 	return Dial(addr, DialWithTimeout(timeout))
 }
 
-// Login authenticates the client with specified user and password.
-//
-// "anonymous"/"anonymous" is a common user/password scheme for FTP servers
-// that allows anonymous read-only accounts.
-func (c *ServerConn) Login(user, password string) error {
-	code, message, err := c.cmd(-1, "USER %s", user)
+func (c *ServerConn) Auth(user, password string) (code int, err error) {
+	code, _, err = c.cmd(-1, "USER %s", user)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
 	switch code {
 	case StatusLoggedIn:
+		return code, nil
 	case StatusUserOK:
-		_, _, err = c.cmd(StatusLoggedIn, "PASS %s", password)
+		code, _, err = c.cmd(-1, "PASS %s", password)
 		if err != nil {
-			return err
+			return 0, err
 		}
+		return code, nil
 	default:
-		return errors.New(message)
+		return code, nil
 	}
+}
 
+func (c *ServerConn) AfterAuth() error {
 	// Probe features
-	err = c.feat()
+	err := c.feat()
 	if err != nil {
 		return err
 	}
